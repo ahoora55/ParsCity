@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pars City — Mobile Edition</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#8bc8ed;font-family:system-ui,sans-serif;touch-action:none}
+#hud{display:none;position:fixed;top:10px;right:10px;z-index:3;color:white;background:#10233bd9;padding:10px 13px;border-radius:12px;font-size:14px;line-height:1.7}
+#note{display:none;position:fixed;top:10px;left:10px;z-index:3;color:#fff;background:#10233bd9;padding:8px 10px;border-radius:10px;font-size:12px}
+#controls{position:fixed;bottom:max(12px, env(safe-area-inset-bottom));left:18px;right:18px;display:flex;justify-content:space-between;align-items:end;z-index:4;pointer-events:none}
+.pad{display:grid;grid-template-columns:54px 54px 54px;grid-template-rows:54px 54px 54px;gap:5px;pointer-events:auto}
+button{border:1px solid #ffffff77;background:#10233bd9;color:white;border-radius:14px;font-size:23px;touch-action:none}
+.pad button{width:clamp(44px,14vw,54px);height:clamp(44px,14vw,54px)}
+#up{grid-column:2;grid-row:1}#left{grid-column:1;grid-row:2}#down{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}
+#actions{display:flex;flex-direction:column;gap:9px;pointer-events:auto}
+#actions button{font-size:14px;padding:13px 16px}
+#bagPanel,#shopPanel{display:none;position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:10;width:min(330px,86vw);max-height:75vh;overflow:auto;background:#13263df2;color:#fff;border:2px solid #e8c98b;border-radius:16px;padding:16px;box-shadow:0 8px 30px #0008;text-align:center}
+#bagGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:12px 0}
+.slot{min-height:43px;display:flex;align-items:center;justify-content:center;background:#ffffff18;border:1px solid #ffffff55;border-radius:7px;font-size:12px;cursor:pointer}.slot.selected{outline:2px solid #ffd166;background:#ffd16633}
+.panelBtn{padding:10px 13px!important;margin:4px;font-size:14px!important}
+#status{position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#fff;text-shadow:0 1px 4px #000;font-size:11px;z-index:2}
+</style>
+</head>
+<body>
+<div id="hud"><b>👑 PARS CITY</b><br>Tomb of Cyrus + Bakery + Cafe + Car Dealership + 50-slot Inventory<br>💵 Money: <span id="moneyHud">1000</span><br>📍 Ahura Coastal City</div>
+<div id="note">Pars City • برخورد واقعی ساختمان‌ها</div>
+<button id="reopenServers" style="display:none;position:fixed;top:12px;left:12px;z-index:1000;padding:10px 12px;background:#e8c98b;color:#172b25;border:0;border-radius:10px;font-size:14px;font-weight:800">🎮 Choose Server</button>
+<div id="onlinePanel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1001;background:#10233bf5;color:white;padding:16px;border:2px solid #e8c98b;border-radius:18px;font:14px system-ui;width:min(340px,88vw);max-height:86vh;overflow:auto;box-sizing:border-box;box-shadow:0 12px 40px #0009">
+<div style="text-align:center;font-size:22px;font-weight:800">🌆 Pars City</div><div style="text-align:center;margin:3px 0 12px">Welcome to the city!</div>
+<button id="showServers" style="display:block;width:100%;padding:13px;margin:12px 0;font-size:16px;background:#e8c98b;color:#172b25;border:0;font-weight:800">🎮 Choose Server</button>
+<div id="serverPicker" style="display:none"><label for="onlineName">Player name</label><input id="onlineName" placeholder="Player name" maxlength="20" style="box-sizing:border-box;width:100%;padding:10px;margin:5px 0 10px;border-radius:8px;border:0;font:14px system-ui">
+<div id="serverChoices" style="display:grid;gap:8px"><button class="serverChoice" data-server="PARS-CITY" style="display:flex;justify-content:space-between;align-items:center;text-align:right;padding:11px;font-size:14px"><span>🌐 Main Pars City Server<br><small>One shared city for all players</small></span><span>Join ⬅</span></button></div></div><div id="onlineState" style="text-align:center;margin-top:10px">Tap “Choose Server” to begin.</div><div id="onlinePlayers" style="text-align:center;font-size:12px;margin-top:4px">Player statistics appear after connecting.</div>
+</div>
+<div id="controls">
+ <div class="pad">
+  <button id="up">▲</button><button id="left">◀</button><button id="down">▼</button><button id="right">▶</button>
+ </div>
+ <div id="actions"><button id="jump">Jump ⤴</button><button id="car">🚗 Enter Car</button><button id="bakeryBtn">🥖 Bakery</button><button id="farmBtn">🌾 Farm & Ranch</button><button id="dealerBtn">🚘 Car Dealership</button><button id="bagBtn">🎒 Inventory (0/50)</button><button id="pickupBtn">📥 Pick Up Item</button><button id="skinBtn">👕 Change Skin</button></div>
+</div>
+<div id="bagPanel"><h3>🎒 Player Inventory</h3><div id="bagCount">0 از 50 slots used</div><div id="bagGrid"></div><p id="dropMsg">Select an item from your inventory to drop it.</p><button class="panelBtn" id="dropBtn">📤 Drop Selected Item</button><button class="panelBtn" id="closeBag">Close</button></div>
+<button id="soundToggle" style="position:fixed;top:150px;right:10px;z-index:20;background:#183426;color:white;border:2px solid #b7d78b;border-radius:12px;padding:9px 12px;font-weight:bold">🔊 Sound: On</button>
+<div id="shopPanel"><h3>🥖 Bakery شهر</h3><p>This shop only sells bread.</p><p>Bread price: 10 coins</p><p id="shopMoney"></p><button class="panelBtn" id="buyBread">Buy Bread 🥖</button><button class="panelBtn" id="closeShop">Close</button><p id="shopMsg"></p></div>
+<div id="sellStorePanel" style="display:none;position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:14;width:min(360px,88vw);max-height:78vh;overflow:auto;background:#18283cf5;color:#fff;border:2px solid #e8c98b;border-radius:16px;padding:15px;box-shadow:0 8px 30px #0008;text-align:center"><h3>🏪 City Produce Shop</h3><p>Enter the shop, click the counter, then select the item you want to sell.</p><p id="sellStoreMoney"></p><div id="sellItems" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div><button class="panelBtn" id="sellAllItems">💰 Sell All Items</button><p id="sellStoreMsg"></p><button class="panelBtn" id="closeSellStore">Close</button></div>
+<div id="cafePanel" style="display:none;position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:12;width:min(360px,88vw);max-height:78vh;overflow:auto;background:#18283cf5;color:#fff;border:2px solid #e8c98b;border-radius:16px;padding:15px;box-shadow:0 8px 30px #0008;text-align:center"><h3>☕ Pars City Cafe</h3><p>Click the stove in the cafe to start cooking. Up to 30 government orders per day!</p><p id="cafeStats"></p><div id="governmentOrder" style="padding:10px;background:#ffffff16;border-radius:10px;margin:8px 0">No government order received yet.</div><button class="panelBtn" id="getOrderBtn">📋 Get Government Order</button><button class="panelBtn" id="deliverOrderBtn">📦 Deliver Order</button><hr style="border-color:#ffffff44"><h4>👨‍🍳 Craft Cafe Items</h4><p>Pay the cost to add the item to your 50-slot inventory.</p><div id="craftButtons" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div><p id="cafeMsg"></p><button class="panelBtn" id="closeCafe">Close</button></div>
+<div id="farmPanel" style="display:none;position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:13;width:min(350px,88vw);max-height:78vh;overflow:auto;background:#183426f5;color:#fff;border:2px solid #b7d78b;border-radius:16px;padding:15px;box-shadow:0 8px 30px #0008;text-align:center"><h3>🌾 Farm & Ranch</h3><p>Go near an animal or crop field and choose an action.</p><button class="panelBtn" id="milkCow">🥛 Milk Cow</button><button class="panelBtn" id="collectEggs">🥚 Collect Eggs</button><button class="panelBtn" id="slaughterAnimal">🔪 Hunt Deer/Elk or Butcher Nearby Animal</button><button class="panelBtn" id="harvestWheat">🌾 Harvest Wheat</button><button class="panelBtn" id="harvestVeg">🥕 Harvest Vegetables</button><p id="farmMsg"></p><button class="panelBtn" id="closeFarm">Close</button></div><div id="dealerPanel" style="display:none;position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:10;width:min(340px,88vw);max-height:75vh;overflow:auto;background:#13263df2;color:#fff;border:2px solid #8ecae6;border-radius:16px;padding:16px;box-shadow:0 8px 30px #0008;text-align:center"><h3>🚘 Pars Car Dealership</h3><p>Choose your car. The black 2025 Mercedes-Benz is also available for the special story price of 30,000 coins.</p><select id="carChoice" style="width:100%;padding:10px;border-radius:9px;font-size:15px"><option value="blueTruck">Blue Nissan Pickup — 250 coins</option><option value="sport">Red Sports Car — 300 coins</option><option value="suv">Blue SUV — 500 coins</option><option value="classic">Gold Classic — 400 coins</option><option value="benz2025">Black 2025 Mercedes-Benz — 30,000 coins</option><option value="landcruiser">Toyota Land Cruiser — 12,000 coins</option><option value="prado">Toyota Land Cruiser Prado — 10,000 coins</option><option value="passat2018">Volkswagen Passat 2018 — 8,000 coins</option><option value="lambo">Lamborghini — 25,000 coins</option></select><p id="dealerMoney"></p><button class="panelBtn" id="buyCar">Buy Car 🚗</button><button class="panelBtn" id="closeDealer">Close</button><p id="dealerMsg"></p></div>
+<div id="ownedCarsPanel" style="display:none;position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:30;width:min(340px,88vw);max-height:75vh;overflow:auto;background:#13263df2;color:#fff;border:2px solid #e8c98b;border-radius:16px;padding:16px;box-shadow:0 8px 30px #0008;text-align:center"><h3>🚘 Which car do you want to drive?</h3><p>Choose from the cars you own.</p><div id="ownedCarChoices" style="display:grid;grid-template-columns:1fr;gap:8px"></div><button class="panelBtn" id="closeOwnedCars">Cancel</button><p id="ownedCarMsg"></p></div>
+<div id="status">Steve + city roads + cafe + produce shop + moving cows, chickens and cats + wild deer and elk + wheat and vegetable farms + building collisions • Swipe horizontally to rotate the camera 360 degrees</div>
+<div id="bootScreen" style="position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;background:#163c30;color:white;text-align:center;font:16px/1.8 system-ui"><div style="font-size:28px;font-weight:800">🏙️ Pars City</div><div id="bootText">Loading 3D engine… Please wait.</div><button id="bootRetry" style="display:none;padding:12px 18px;border-radius:12px;background:#e8c98b;color:#172b25;font-size:16px">Try Again</button><div style="font-size:12px;opacity:.85">Internet access to the game engine library is required for 3D mode.</div></div>
+<script type="module">
+// Lightweight synthesized game audio: works offline and needs no external sound files.
+let audioCtx=null, soundEnabled=true, engineOsc=null, engineGain=null, engineFilter=null, lastStepAt=0;
+function ensureAudio(){if(!audioCtx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;audioCtx=new AC()}if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}
+function tone(freq=440,duration=.09,wave='sine',volume=.06,endFreq=null){const c=ensureAudio();if(!c||!soundEnabled)return;const o=c.createOscillator(),g=c.createGain();o.type=wave;o.frequency.setValueAtTime(freq,c.currentTime);if(endFreq)o.frequency.exponentialRampToValueAtTime(Math.max(1,endFreq),c.currentTime+duration);g.gain.setValueAtTime(volume,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+duration);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+duration)}
+function noiseBurst(duration=.08,volume=.025,cutoff=700){const c=ensureAudio();if(!c||!soundEnabled)return;const n=Math.max(1,Math.floor(c.sampleRate*duration)),buf=c.createBuffer(1,n,c.sampleRate),data=buf.getChannelData(0);for(let i=0;i<n;i++)data[i]=(Math.random()*2-1)*(1-i/n);const src=c.createBufferSource(),filter=c.createBiquadFilter(),g=c.createGain();src.buffer=buf;filter.type='lowpass';filter.frequency.value=cutoff;g.gain.setValueAtTime(volume,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+duration);src.connect(filter);filter.connect(g);g.connect(c.destination);src.start();src.stop(c.currentTime+duration)}
+function animalCry(kind){if(!soundEnabled)return;ensureAudio();if(!audioCtx)return;switch(kind){case 'deer':tone(720,.16,'sawtooth',.035,330);setTimeout(()=>tone(420,.2,'sawtooth',.028,850),100);noiseBurst(.12,.018,1500);break;case 'elk':tone(460,.34,'sawtooth',.045,180);setTimeout(()=>tone(240,.28,'sawtooth',.035,620),180);noiseBurst(.2,.022,1100);break;case 'cow':tone(190,.42,'sawtooth',.05,105);setTimeout(()=>tone(130,.28,'triangle',.045,90),260);break;case 'chicken':tone(900,.07,'square',.025,620);setTimeout(()=>tone(650,.09,'square',.022,980),75);setTimeout(()=>tone(780,.06,'square',.018,540),160);break;case 'cat':tone(520,.22,'triangle',.03,760);setTimeout(()=>tone(700,.18,'triangle',.025,400),130);break;}}
+function sfx(kind){if(!soundEnabled)return;ensureAudio();if(!audioCtx)return;switch(kind){case 'click':tone(620,.045,'square',.018,440);break;case 'buy':tone(520,.1,'sine',.055,780);setTimeout(()=>tone(780,.16,'sine',.05,1040),85);break;case 'pickup':tone(660,.07,'triangle',.045,880);break;case 'drop':tone(230,.1,'triangle',.05,120);break;case 'sell':tone(740,.08,'sine',.045,990);setTimeout(()=>tone(990,.1,'sine',.04,1200),65);break;case 'craft':tone(880,.08,'sine',.045,1180);setTimeout(()=>tone(1320,.13,'sine',.04,1580),80);break;case 'jump':tone(300,.13,'sine',.04,650);break;case 'step':noiseBurst(.075,.045,520);tone(82+Math.random()*18,.07,'triangle',.022,48);break;case 'open':tone(440,.08,'sine',.035,560);break}}
+function updateEngine(active,rev=0){if(!soundEnabled||!active){if(engineGain&&audioCtx)engineGain.gain.setTargetAtTime(0,audioCtx.currentTime,.16);return}const c=ensureAudio();if(!c)return;if(!engineOsc){engineOsc=c.createOscillator();engineFilter=c.createBiquadFilter();engineGain=c.createGain();engineOsc.type='sawtooth';engineFilter.type='lowpass';engineFilter.frequency.value=620;engineGain.gain.value=0;engineOsc.connect(engineFilter);engineFilter.connect(engineGain);engineGain.connect(c.destination);engineOsc.start()}const r=Math.min(1,Math.abs(rev));engineOsc.frequency.setTargetAtTime(68+r*62,c.currentTime,.09);engineFilter.frequency.setTargetAtTime(420+r*620,c.currentTime,.12);engineGain.gain.setTargetAtTime(.105+r*.045,c.currentTime,.12)}
+const soundButton=document.getElementById('soundToggle');soundButton?.addEventListener('click',()=>{soundEnabled=!soundEnabled;soundButton.textContent=soundEnabled?'🔊 Sound: On':'🔇 Sound: Off';if(!soundEnabled&&engineGain&&audioCtx)engineGain.gain.setTargetAtTime(0,audioCtx.currentTime,.05);else ensureAudio()});
+document.addEventListener('click',e=>{if(e.target.closest('#soundToggle'))return;const b=e.target.closest('button');if(b){const id=b.id;if(['buyCar','buyBread'].includes(id))return;sfx(/sell|Sell/i.test(id)?'sell':/drop/i.test(id)?'drop':/jump/i.test(id)?'jump':/bag|inventory/i.test(id)?'open':'click')}},{capture:true});
+
+// Load Three.js from several CDNs so the game is not tied to one host.
+let THREE;
+const threeSources=[
+ 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+ 'https://unpkg.com/three@0.160.0/build/three.module.js',
+ 'https://esm.sh/three@0.160.0'
+];
+let threeLoadError=null;
+for(const source of threeSources){try{THREE=await import(source);break}catch(err){threeLoadError=err;}}
+if(!THREE){
+ document.getElementById('controls').style.display='none';
+ document.getElementById('status').style.display='none';
+ document.getElementById('bootText').textContent='The 3D engine failed to load, which is why you see a blue screen. Check your internet and open the game in Chrome.';
+ const retry=document.getElementById('bootRetry'); retry.style.display='block'; retry.onclick=()=>location.reload();
+ console.error('Unable to load Three.js from any CDN:',threeLoadError);
+} else {
+ document.getElementById('bootScreen').style.display='none';
+}
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x91d1f5); scene.fog=new THREE.Fog(0x91d1f5,70,210);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.outputColorSpace=THREE.SRGBColorSpace; document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x58735d,2));
+const sun=new THREE.DirectionalLight(0xfff0d2,2.5); sun.position.set(-25,50,25); sun.castShadow=true; scene.add(sun);
+function mat(c,rough=0.85){return new THREE.MeshStandardMaterial({color:c,roughness:rough})}
+const solidAreas=[];
+function addSolid(x,z,w,d,pad=.48){solidAreas.push({x,z,hw:w/2+pad,hd:d/2+pad})}
+function blocked(x,z){return solidAreas.some(a=>Math.abs(x-a.x)<a.hw && Math.abs(z-a.z)<a.hd)}
+function box(x,y,z,w,h,d,color,cast=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;scene.add(m);return m}
+const grass=box(0,-.35,0,260,.5,260,0x5fa65c,false);
+// Pars City road network restored: asphalt lanes, dashed center markings and junctions.
+function road(x,z,w,d){box(x,-.035,z,w,.08,d,0x343a40,false)}
+function roadDash(x,z,w,d){box(x,.022,z,w,.035,d,0xfff0b3,false)}
+// Main avenue and central cross street
+road(0,10,5.4,120); road(-2.05,10,.12,120); road(2.05,10,.12,120);
+road(0,0,150,5.4); roadDash(0,0,150,.13);
+// Neighborhood streets between the rows of houses
+for(const rz of [-39,-21,-3,15,57]){
+  road(0,rz,150,3.8);
+  for(let x=-72;x<=72;x+=9) roadDash(x,rz,3.8,.10);
+}
+// North-south neighborhood streets; the two shop plots are left unobstructed.
+for(const rx of [-40,-24,-8,8,24,40,56]){
+  if(rx===-24 || rx===24){
+    road(rx,-15,3.8,74); // southern section
+    road(rx,48,3.8,20);  // northern section, beyond the shops
+    for(let z=-48;z<21;z+=9) roadDash(rx,z,.10,3.8);
+    for(let z=40;z<58;z+=9) roadDash(rx,z,.10,3.8);
+  } else {
+    road(rx,3,3.8,110);
+    for(let z=-48;z<=54;z+=9) roadDash(rx,z,.10,3.8);
+  }
+}
+// A wider paved forecourt connects the road to the waterfront district.
+road(68,10,4.2,120);
+// buildings in city blocks
+const colors=[0xe9d8bc,0xd6e0e7,0xf0c7a1,0xc3d5d9,0xd9c5e8,0xf1e7d2];
+for(let x=-48;x<=48;x+=16){for(let z=-48;z<=48;z+=18){if(Math.abs(x)<10||Math.abs(z)<8)continue;
+ // Keep the plot beside the Tomb of Cyrus clear: remove the adjacent house.
+ if(x===-16&&z===-48)continue;
+ const h=5+Math.random()*15,w=7+Math.random()*3,d=7+Math.random()*3;
+ box(x,h/2,z,w,h,d,colors[Math.floor(Math.random()*colors.length)]);addSolid(x,z,w,d,.55);
+ for(let yy=2;yy<h-1;yy+=2.5){for(let xx=-w/2+1;xx<w/2;xx+=2){box(x+xx,yy,z+d/2+.035,.9,1.1,.07,0x70c9ed,false)}}
+}}
+// Extra neighborhood houses added for this update
+function makeHome(x,z,wallColor,roofColor){
+ const w=8.2,d=7.6,h=4.4;
+ addSolid(x,z,w,d,.6);
+ // house body and gabled-looking roof made from two sloped roof panels
+ box(x,h/2,z,w,h,d,wallColor);
+ const roofL=box(x-2.05,h+1.0,z,4.7,.28,d+1.0,roofColor);roofL.rotation.z=-Math.PI/7;
+ const roofR=box(x+2.05,h+1.0,z,4.7,.28,d+1.0,roofColor);roofR.rotation.z=Math.PI/7;
+ // front door and windows face the south (+z)
+ box(x,1.25,z+d/2+.07,1.25,2.5,.13,0x70452f);
+ box(x,1.25,z+d/2+.15,.86,2.1,.05,0x9bd8e9,false);
+ for(const wx of [x-2.25,x+2.25]){
+   box(wx,2.45,z+d/2+.075,1.35,1.25,.12,0xf6f0db);
+   box(wx,2.45,z+d/2+.15,1.05,.96,.05,0x78c9eb,false);
+   box(wx,2.45,z+d/2+.19,.08,1.0,.04,0xf6f0db,false);
+   box(wx,2.45,z+d/2+.19,1.08,.08,.04,0xf6f0db,false);
+ }
+ // chimney
+ box(x-2.7,h+1.2,z-1.7,.8,2.0,.8,0x9c4c3b);
+}
+[
+ [-68,-55,0xf0d7ad,0xb84a3d],
+ [-68,-25,0xc8e2e8,0x3e6d9c],
+ [-68,8,0xe8c5bb,0x6f8d4d],
+ [-68,42,0xe5d9f0,0x7d5aa6],
+ [-42,66,0xf0e5c9,0x3f8b74],
+ [-12,66,0xd7e5bf,0xc65d3f]
+].forEach(([x,z,wc,rc])=>makeHome(x,z,wc,rc));
+// sea and beach to the east
+box(85,-.1,0,75,.3,260,0x208ec3,false);box(45,-.08,0,7,.25,260,0xe8d19a,false);
+// distant hills
+for(let i=0;i<15;i++){const hill=new THREE.Mesh(new THREE.ConeGeometry(12+Math.random()*12,18+Math.random()*25,5),mat(0x557e70));hill.position.set(-95+Math.random()*190,8,-105-Math.random()*30);scene.add(hill)}
+// trees
+const forestTreePositions=[];
+function tree(x,z){forestTreePositions.push({x,z});const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.25,.4,2,7),mat(0x795235));trunk.position.set(x,1,z);scene.add(trunk);const crown=new THREE.Mesh(new THREE.ConeGeometry(1.8,4,7),mat(0x267447));crown.position.set(x,3.7,z);crown.castShadow=true;scene.add(crown)}
+for(let i=0;i<55;i++){let x=-60+Math.random()*120,z=-100+Math.random()*200;if(Math.abs(x)<10||Math.abs(z)<8)continue;
+ // Keep the plot beside the Tomb of Cyrus clear: remove the adjacent house.
+ if(x===-16&&z===-48)continue;tree(x,z)}
+// Distinct 3D bakery building: bread-only shop with awning, counter and bread display
+function makeBakery(){
+ const x=25,z=30;addSolid(x,z,9,7,.45);
+ box(x,2,z,9,4,7,0xf4dfbf);                 // warm plaster walls
+ box(x,4.18,z,9,.45,7,0x843f2b);            // tiled roof
+ box(x,2.05,z+3.56,3.4,2.5,.16,0x4b2e20);   // dark shopfront frame
+ box(x,2.05,z+3.67,2.85,1.95,.08,0x8fd3e6,false); // front window
+ box(x-2.65,1.15,z+3.7,1.5,2.3,.18,0x795035); // door
+ box(x-2.65,1.15,z+3.81,.95,1.75,.08,0x8fd3e6,false);
+ // striped awning above the service window
+ box(x,3.25,z+4.05,5.9,.22,1.05,0xb53b2e);
+ for(let i=0;i<7;i++) box(x-2.7+i*.9,3.25,z+4.08,.42,.24,1.08,i%2?0xffe8bf:0xb53b2e,false);
+ // serving counter and trays of golden bread loaves
+ box(x,1.05,z+4.18,4.9,.55,.8,0x8a5938);
+ function loaf(px,pz){const m=new THREE.Mesh(new THREE.SphereGeometry(.23,12,8),mat(0xd89a42));m.scale.set(1.35,.72,.72);m.position.set(px,1.48,pz);m.castShadow=true;scene.add(m);box(px,1.63,pz,.12,.025,.08,0xf7d78b,false)}
+ for(let i=0;i<5;i++)loaf(x-1.7+i*.85,z+4.15);
+ // signboard
+ box(x,4.65,z+3.72,7.4,.9,.18,0x71351f);
+ const signCanvas=document.createElement('canvas');signCanvas.width=768;signCanvas.height=128;const sctx=signCanvas.getContext('2d');sctx.fillStyle='#71351f';sctx.fillRect(0,0,768,128);sctx.fillStyle='#fff0c5';sctx.font='bold 62px sans-serif';sctx.textAlign='center';sctx.textBaseline='middle';sctx.fillText('Bakery • Bread Only',384,64);const signTex=new THREE.CanvasTexture(signCanvas);const sign=new THREE.Mesh(new THREE.PlaneGeometry(7.1,.78),new THREE.MeshBasicMaterial({map:signTex}));sign.position.set(x,4.65,z+3.83);scene.add(sign);
+ // side window and chimney
+ box(x+4.56,2.3,z, .12,1.6,2.2,0x77b8cb,false);
+ box(x+2.7,5.05,z-1.7,1.05,1.5,1.05,0xb7a28a);
+}
+makeBakery();
+// Three-dimensional car dealership placed on the west side of the city
+function makeDealerCar(x,z,color,scale=1,type='sedan'){
+ const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);g.scale.setScalar(scale);
+ const pickup=type==='pickup',small=type==='pride';
+ const body=new THREE.Mesh(new THREE.BoxGeometry(small?1.9:2.2,.62,pickup?4.3:3.8),mat(color,.42));body.position.y=.7;body.castShadow=true;g.add(body);
+ const cabin=new THREE.Mesh(new THREE.BoxGeometry(small?1.42:1.58,.68,pickup?1.65:(small?1.55:1.9)),mat(0x9bd8ed,.28));cabin.position.set(0,1.27,pickup?-.65:-.15);g.add(cabin);
+ if(pickup){const bedmat=mat(color,.5);for(const side of [-1,1]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.12,.48,1.45),bedmat);rail.position.set(side*.87,.95,1.18);g.add(rail)}const tail=new THREE.Mesh(new THREE.BoxGeometry(1.7,.42,.12),bedmat);tail.position.set(0,.9,1.85);g.add(tail)}
+ for(const wx of [-1.05,1.05])for(const wz of [-1.25,1.25]){const tire=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.25,20),mat(0x17191c));tire.rotation.z=Math.PI/2;tire.position.set(wx,.38,wz);g.add(tire);const rim=new THREE.Mesh(new THREE.CylinderGeometry(.19,.19,.265,16),mat(0xbfc7cd,.32));rim.rotation.z=Math.PI/2;rim.position.set(wx*1.005,.38,wz);g.add(rim)}
+ // Bumpers, grille, headlights, tail lamps and side mirrors for a more car-like silhouette
+ const bumperMat=mat(0x252a2f,.38), chrome=mat(0xd5dce0,.25), lamp=mat(0xfff3c4,.22), tailLamp=mat(0xc82028,.25);
+ const front=new THREE.Mesh(new THREE.BoxGeometry(small?1.8:2.08,.16,.18),bumperMat);front.position.set(0,.49,-(pickup?2.13:1.9));g.add(front);
+ const rear=new THREE.Mesh(new THREE.BoxGeometry(small?1.8:2.08,.16,.18),bumperMat);rear.position.set(0,.49,pickup?2.13:1.9);g.add(rear);
+ const grille=new THREE.Mesh(new THREE.BoxGeometry(.65,.2,.035),chrome);grille.position.set(0,.72,-(pickup?2.17:1.94));g.add(grille);
+ for(const sx of [-1,1]){const head=new THREE.Mesh(new THREE.BoxGeometry(.36,.18,.05),lamp);head.position.set(sx*.72,.83,-(pickup?2.18:1.95));g.add(head);const tailLight=new THREE.Mesh(new THREE.BoxGeometry(.28,.22,.05),tailLamp);tailLight.position.set(sx*.78,.78,pickup?2.18:1.95);g.add(tailLight);const mirror=new THREE.Mesh(new THREE.BoxGeometry(.2,.16,.28),mat(color,.4));mirror.position.set(sx*(small? .82: .96),1.2,-.45);g.add(mirror)}
+ // windshield and rear glass details
+ const glass=mat(0x244354,.18);const windshield=new THREE.Mesh(new THREE.BoxGeometry(small?1.25:1.38,.46,.045),glass);windshield.position.set(0,1.38,pickup?-1.48:-1.02);g.add(windshield);
+ const detailMat=mat(0xcbd2d8,.22),trim=mat(0x252a30,.4),paint=mat(color,.28);
+ const hood=new THREE.Mesh(new THREE.BoxGeometry(small?1.55:1.78,.12,1.05),paint);hood.position.set(0,1.02,-1.25);g.add(hood);
+ const trunk=new THREE.Mesh(new THREE.BoxGeometry(small?1.5:1.72,.12,.7),paint);trunk.position.set(0,1.0,1.35);g.add(trunk);
+ const roof=new THREE.Mesh(new THREE.BoxGeometry(small?1.32:1.48,.12,pickup?1.35:1.55),paint);roof.position.set(0,1.66,pickup?-.65:-.15);g.add(roof);
+ for(const sx of [-1,1]){const handle=new THREE.Mesh(new THREE.BoxGeometry(.045,.045,.16),detailMat);handle.position.set(sx*(small?.73:.84),1.02,.05);g.add(handle);const sill=new THREE.Mesh(new THREE.BoxGeometry(.09,.12,2.05),trim);sill.position.set(sx*.99,.47,0);g.add(sill);const frontRim=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.27,16),detailMat);frontRim.rotation.z=Math.PI/2;frontRim.position.set(sx*1.055,.38,-1.25);g.add(frontRim);const rearRim=frontRim.clone();rearRim.position.z=1.25;g.add(rearRim)}
+ return g;
+}
+function makeDealership(){
+ const x=-27,z=30;addSolid(x,z,13,9,.55);
+ box(x,2,z,13,4.2,9,0xe4eaf0);box(x,4.25,z,13,.45,9,0x24527b);
+ box(x,2,z+4.58,7,2.5,.15,0x273747);box(x,2,z+4.68,6.5,2.05,.08,0x9bd8ed,false);
+ box(x,4.8,z+4.7,10,.85,.2,0x123b5a);
+ const c=document.createElement('canvas');c.width=768;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#123b5a';ctx.fillRect(0,0,768,128);ctx.fillStyle='#ffffff';ctx.font='bold 64px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Car Dealership',384,64);const t=new THREE.CanvasTexture(c);const sign=new THREE.Mesh(new THREE.PlaneGeometry(9.7,.72),new THREE.MeshBasicMaterial({map:t}));sign.position.set(x,4.8,z+4.82);scene.add(sign);
+ makeDealerCar(x-3.5,z+8,0xf2f0e8,.82,'pride');makeDealerCar(x,z+8,0x1679d3,.82,'pickup');makeDealerCar(x+3.5,z+8,0xb8bdc4,.82,'sedan');
+}
+makeDealership();
+// A separate blue-roofed city shop building (not connected to bakery sales)
+addSolid(15,-15,9,7,.5);box(15,2,-15,9,4,7,0xe3e6dc);box(15,4.2,-15,9,.5,7,0x477e9e);box(15,2,-11.42,3,2.3,.12,0x4b2e20);box(15,3.65,-11.3,5,.55,.15,0xffffff);
+
+// Pars Cafe: a distinct 3D cafe building with outdoor tables and a sign
+const interiorRoofs=[];
+function makeCafe(){
+ const x=-52,z=30;
+ // Separate wall sections leave a real doorway on the front-left side.
+ box(x,2.05,z-4.35,12,4.1,.3,0xf0d9b8);
+ box(x-5.85,2.05,z, .3,4.1,9,0xf0d9b8);box(x+5.85,2.05,z,.3,4.1,9,0xf0d9b8);
+ box(x-5.6,2.05,z+4.35,.8,4.1,.3,0xf0d9b8);box(x+1.3,2.05,z+4.35,9.4,4.1,.3,0xf0d9b8);
+ const cafeRoof=box(x,4.2,z,12,.5,9,0x3e6b56);interiorRoofs.push({mesh:cafeRoof,x,z});
+ box(x,2,z+4.62,6.3,2.55,.16,0x273b35);box(x,2,z+4.72,5.7,2.05,.07,0x8fd3e6,false);
+ box(x-4.3,1.15,z+4.72,1.35,2.3,.18,0x76503a);
+ box(x,3.55,z+4.78,8.8,.55,.2,0x5b3527);
+ const c=document.createElement('canvas');c.width=768;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#315846';ctx.fillRect(0,0,768,128);ctx.fillStyle='#fff0c5';ctx.font='bold 66px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('PARS Cafe',384,64);const t=new THREE.CanvasTexture(c);const sign=new THREE.Mesh(new THREE.PlaneGeometry(7.8,.72),new THREE.MeshBasicMaterial({map:t}));sign.position.set(x,3.55,z+4.91);scene.add(sign);
+ for(const [tx,tz] of [[x-4,z+7],[x+4,z+7]]){box(tx,.85,tz,1.8,.18,1.4,0x754a2d);for(const sx of [-.65,.65])for(const sz of [-.45,.45])box(tx+sx,.4,tz+sz,.12,.8,.12,0x4d3a2b);box(tx,.48,tz,1.4,.12,1.0,0x4f805d);}
+ // Visible kitchen area: clicking the stove starts cooking/work at the cafe.
+ const stove=box(x-1.7,.78,z-1.0,2.5,.95,1.35,0x343a40);stove.userData.interaction='cafe';
+ const hob=box(x-1.7,1.29,z-1.0,2.25,.12,1.15,0x17191d);hob.userData.interaction='cafe';
+ for(const [bx,bz] of [[x-2.25,z-.65],[x-1.15,z-.65],[x-2.25,z-1.35],[x-1.15,z-1.35]]){const burner=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.07,16),mat(0x9ba3aa));burner.position.set(bx,1.39,bz);burner.userData.interaction='cafe';scene.add(burner)}
+ const ovenDoor=box(x-1.7,.67,z-.29,1.15,.42,.045,0x20252a);ovenDoor.userData.interaction='cafe';
+ const stoveLabel=box(x-1.7,1.85,z-1.0,2.7,.3,.12,0x315846);stoveLabel.userData.interaction='cafe';
+ // Interior counter is clickable too, as the work station.
+ const counter=box(x+2.0,.72,z-1.25,2.3,.95,1.15,0x795035);counter.userData.interaction='cafe';
+}makeCafe();
+// Player sell shop: 3D building near the central road
+function makeSellStore(){const x=-10,z=30;
+ // Wall sections leave an entrance in the front wall, aligned with the doorway.
+ box(x,2,z-3.85,10,4,.3,0xe8d9b5);box(x-4.85,2,z,.3,4,8,0xe8d9b5);box(x+4.85,2,z,.3,4,8,0xe8d9b5);
+ box(x-4.4,2,z+3.85,1.2,4,.3,0xe8d9b5);box(x+1.7,2,z+3.85,6.6,4,.3,0xe8d9b5);
+ const storeRoof=box(x,4.15,z,10,.45,8,0x286b54);interiorRoofs.push({mesh:storeRoof,x,z});box(x,2,z+4.1,5.4,2.5,.14,0x49372a);box(x,2,z+4.2,4.8,2.05,.07,0x9bd8ed,false);box(x-3.2,1.25,z+4.25,1.2,2.5,.16,0x795035);box(x-3.2,1.25,z+4.34,.75,1.9,.06,0x8fd3e6,false);const c=document.createElement('canvas');c.width=768;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#286b54';ctx.fillRect(0,0,768,128);ctx.fillStyle='#fff';ctx.font='bold 58px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Produce Shop',384,64);const t=new THREE.CanvasTexture(c);const s=new THREE.Mesh(new THREE.PlaneGeometry(7.6,.9),new THREE.MeshBasicMaterial({map:t}));s.position.set(x,4.15,z+4.25);scene.add(s);const counter=box(x,1.0,z+2.6,5.2,.9,1.0,0x795035);counter.userData.interaction='sell';const till=box(x+1.7,1.58,z+2.55,.65,.25,.55,0x263238);till.userData.interaction='sell'}makeSellStore();
+// Tomb of Cyrus — stepped limestone base and taller vertical upper chamber
+const tombX=0, tombZ=-65; // moved much farther forward from the black doorway side onto the flat ground
+// Collision walls around the tomb; leave a narrow gap at the front doorway.
+addSolid(tombX,tombZ-5.5,13,1.2,.3);addSolid(tombX-6.5,tombZ,1.2,10,.3);addSolid(tombX+6.5,tombZ,1.2,10,.3);addSolid(tombX-4.2,tombZ+5.5,4.5,1.1,.3);addSolid(tombX+4.2,tombZ+5.5,4.5,1.1,.3);
+const limestone=[0xd8c69f,0xcdbb94,0xe0d0aa,0xc7b48c];
+function stoneBlock(x,y,z,w,h,d,c){const m=box(x,y,z,w,h,d,c);m.material.roughness=.96;return m}
+// broad stepped courses, with individually offset stone blocks
+for(let tier=0;tier<5;tier++){
+ const w=15-tier*2.0, d=12-tier*1.55, h=1.05, y=.52+tier*1.02;
+ const count=Math.max(3,Math.floor(w/2.6));
+ for(let i=0;i<count;i++){
+  const bw=w/count-.07;
+  stoneBlock(tombX-w/2+bw/2+i*w/count,y,tombZ+d/2,bw,h,.75,limestone[(i+tier)%4]);
+  stoneBlock(tombX-w/2+bw/2+i*w/count,y,tombZ-d/2,bw,h,.75,limestone[(i+tier+1)%4]);
+ }
+ for(let i=0;i<Math.max(3,Math.floor(d/1.8));i++){
+  const bd=d/Math.max(3,Math.floor(d/1.8))-.06;
+  stoneBlock(tombX-w/2,y,tombZ-d/2+bd/2+i*d/Math.max(3,Math.floor(d/1.8)),.75,h,bd,limestone[(i+tier+2)%4]);
+  stoneBlock(tombX+w/2,y,tombZ-d/2+bd/2+i*d/Math.max(3,Math.floor(d/1.8)),.75,h,bd,limestone[(i+tier+3)%4]);
+ }
+}
+// taller vertical chamber (the requested change); centered dark doorway on front
+const chamberY=7.0;
+stoneBlock(tombX,chamberY,tombZ,5.8,5.3,5.0,0xd8c69f);
+// doorway dark inset on the front face facing the city/camera approach
+stoneBlock(tombX,chamberY-.85,tombZ+2.53,1.05,1.8,.06,0x30271b);
+// lintel and simple weathered cap
+stoneBlock(tombX,chamberY+1.65,tombZ+2.57,5.9,.35,.18,0xbca77e);
+const cap=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.0,.8,4,1),mat(0xcab78f));cap.rotation.y=Math.PI/4;cap.position.set(tombX,10.0,tombZ);cap.castShadow=true;scene.add(cap);
+// small approach path
+box(tombX,0.02,tombZ+13,4,.12,14,0xc9b995,false);
+
+// Classic Steve avatar restored
+const player=new THREE.Group();scene.add(player);
+function playerPart(w,h,d,color,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;player.add(m);return m}
+const shirt=playerPart(.82,.82,.42,0x00a6a6,0,1.25,0);
+const neck=playerPart(.22,.14,.22,0xb98562,0,1.72,0);
+const head=playerPart(.64,.64,.64,0xc99570,0,2.13,0);
+// Hair cap and sideburns
+const hair=playerPart(.66,.18,.66,0x3a261b,0,2.54,0);
+playerPart(.10,.40,.67,0x3a261b,-.29,2.28,0);
+playerPart(.10,.40,.67,0x3a261b,.29,2.28,0);
+// Steve's eyes, blue pixels, nose and mouth/beard on the front (+Z)
+playerPart(.13,.11,.035,0xffffff,-.15,2.17,.333);
+playerPart(.13,.11,.035,0xffffff,.15,2.17,.333);
+playerPart(.065,.10,.025,0x2878b8,-.15,2.17,.354);
+playerPart(.065,.10,.025,0x2878b8,.15,2.17,.354);
+playerPart(.10,.12,.055,0xb98562,0,2.06,.35);
+playerPart(.30,.07,.035,0x69432e,0,1.94,.337);
+playerPart(.42,.12,.035,0x69432e,0,1.87,.333);
+// Sleeves and skin-colored forearms
+playerPart(.25,.42,.29,0x00a6a6,-.56,1.43,0);
+playerPart(.25,.42,.29,0x00a6a6,.56,1.43,0);
+const armL=playerPart(.25,.38,.29,0xc99570,-.56,1.03,0);
+const armR=playerPart(.25,.38,.29,0xc99570,.56,1.03,0);
+// Classic dark indigo trousers and separate block legs
+const legL=playerPart(.31,.72,.33,0x293b91,-.22,.42,0);
+const legR=playerPart(.31,.72,.33,0x293b91,.22,.42,0);
+// Simple pixel seams to make the outfit read clearly at game distance
+playerPart(.035,.76,.03,0x008888,0,1.25,.218);
+document.getElementById('skinBtn').textContent='🧑 اسکین: استیو';
+document.getElementById('skinBtn').onclick=()=>{document.getElementById('status').textContent='اسکین اصلی استیو فعال است';};
+player.position.set(0,0,3);
+
+// Multiplayer visuals: render remote players as simple Minecraft-style avatars.
+const remoteAvatars = new Map();
+function makeRemoteAvatar(info){
+ const group=new THREE.Group();
+ const shirtColor=0x3f8fda, skinColor=0xc99570, pantsColor=0x344a8d, hairColor=0x3a261b;
+ function part(w,h,d,color,x,y,z){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);return mesh;}
+ part(.82,.82,.42,shirtColor,0,1.25,0);part(.64,.64,.64,skinColor,0,2.13,0);part(.66,.18,.66,hairColor,0,2.54,0);
+ part(.1,.4,.67,hairColor,-.29,2.28,0);part(.1,.4,.67,hairColor,.29,2.28,0);
+ part(.25,.42,.29,shirtColor,-.56,1.43,0);part(.25,.42,.29,shirtColor,.56,1.43,0);
+ part(.25,.38,.29,skinColor,-.56,1.03,0);part(.25,.38,.29,skinColor,.56,1.03,0);
+ part(.31,.72,.33,pantsColor,-.22,.42,0);part(.31,.72,.33,pantsColor,.22,.42,0);
+ const labelCanvas=document.createElement('canvas');labelCanvas.width=256;labelCanvas.height=64;
+ const ctx=labelCanvas.getContext('2d');ctx.fillStyle='rgba(16,35,59,.86)';ctx.fillRect(0,0,256,64);ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffffff';ctx.fillText(String(info.name||'Player').slice(0,20),128,32);
+ const texture=new THREE.CanvasTexture(labelCanvas);const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));sprite.position.y=3.0;sprite.scale.set(2.5,.62,1);group.add(sprite);
+ scene.add(group);remoteAvatars.set(info.id,{group,texture});return group;
+}
+function updateRemoteAvatar(info){if(!info||!info.id||!info.position)return;let entry=remoteAvatars.get(info.id);if(!entry){makeRemoteAvatar(info);entry=remoteAvatars.get(info.id);}const p=info.position;entry.group.position.set(Number(p.x)||0,0,Number(p.z)||0);entry.group.rotation.y=Number(p.angle)||0;}
+function removeRemoteAvatar(id){const entry=remoteAvatars.get(id);if(!entry)return;scene.remove(entry.group);entry.group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});entry.texture?.dispose();remoteAvatars.delete(id);}
+window.addEventListener('pars-city-players',e=>{const d=e.detail||{};if(d.type==='reset'){for(const id of [...remoteAvatars.keys()])removeRemoteAvatar(id);(d.players||[]).forEach(updateRemoteAvatar);}else if(d.type==='update')updateRemoteAvatar(d.player);else if(d.type==='remove')removeRemoteAvatar(d.id);});
+
+// Free-roaming chickens restored; they wander around the city rather than spinning in place.
+const chickens=[];
+const eggs=[];
+function layEgg(c){
+ // A small cream-colored egg is left where the hen is standing.
+ const egg=new THREE.Mesh(new THREE.SphereGeometry(.16,12,10),mat(0xfff4d6));
+ egg.scale.set(.78,1.25,.78); egg.position.set(c.position.x,.18,c.position.z); egg.rotation.y=Math.random()*Math.PI*2; egg.castShadow=true; egg.receiveShadow=true; scene.add(egg); eggs.push(egg);
+ // Keep the world light on mobile by retaining only the newest 36 eggs.
+ if(eggs.length>36){const old=eggs.shift();scene.remove(old);old.geometry.dispose();old.material.dispose();}
+}
+function makeChicken(x,z,i){
+ const g=new THREE.Group(); scene.add(g); g.position.set(x,0,z);
+ const feather=mat(0xf4eee0), red=mat(0xc9362d), beak=mat(0xe8a12b), dark=mat(0x292929);
+ const body=new THREE.Mesh(new THREE.BoxGeometry(.62,.48,.82),feather);body.position.y=.55;body.castShadow=true;g.add(body);
+ const head=new THREE.Mesh(new THREE.BoxGeometry(.38,.38,.38),feather);head.position.set(0,.88,.35);head.castShadow=true;g.add(head);
+ const comb=new THREE.Mesh(new THREE.BoxGeometry(.2,.13,.12),red);comb.position.set(0,1.12,.36);g.add(comb);
+ const bill=new THREE.Mesh(new THREE.ConeGeometry(.12,.24,4),beak);bill.rotation.x=Math.PI/2;bill.position.set(0,.84,.61);g.add(bill);
+ for(const ex of [-.105,.105]){const eye=new THREE.Mesh(new THREE.BoxGeometry(.055,.055,.035),dark);eye.position.set(ex,.94,.55);g.add(eye)}
+ for(const lx of [-.18,.18]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.07,.28,.07),beak);leg.position.set(lx,.16,.03);g.add(leg)}
+ g.userData={dir:Math.random()*Math.PI*2,phase:i*1.7,turn:0,eggTimer:5+Math.random()*12}; chickens.push(g);
+}
+for(let i=0;i<9;i++){makeChicken(-32+(i%3)*7,8+Math.floor(i/3)*7,i)}
+function updateChickens(dt){for(const c of chickens){const u=c.userData;u.eggTimer-=dt;if(u.eggTimer<=0){layEgg(c);u.eggTimer=22+Math.random()*18;}u.turn-=dt;if(u.turn<=0){u.dir+=(Math.random()-.5)*1.8;u.turn=1.2+Math.random()*2.8}const speed=1.0;let nx=c.position.x+Math.sin(u.dir)*speed*dt,nz=c.position.z+Math.cos(u.dir)*speed*dt;if(nx < -55 || nx > 50 || nz < -5 || nz > 52){u.dir+=Math.PI;nx=c.position.x;nz=c.position.z}c.position.x=nx;c.position.z=nz;c.rotation.y=u.dir;u.phase+=dt*9; c.children[0].position.y=.55+Math.sin(u.phase)*.025;}}
+// Friendly roaming cat added to Pars City (mobile-friendly low-poly model).
+const cats=[];
+function makeCat(x,z,i){
+ const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);
+ const fur=mat(i%2?0x55504b:0xd18a45), light=mat(0xf2e4cc), eyes=mat(0x54b85a), nose=mat(0x5a302b), dark=mat(0x242321);
+ const body=new THREE.Mesh(new THREE.BoxGeometry(.48,.42,.82),fur);body.position.set(0,.43,0);body.castShadow=true;g.add(body);
+ const head=new THREE.Mesh(new THREE.BoxGeometry(.48,.43,.46),fur);head.position.set(0,.72,.43);head.castShadow=true;g.add(head);
+ for(const sx of [-.17,.17]){const ear=new THREE.Mesh(new THREE.ConeGeometry(.12,.27,4),fur);ear.position.set(sx,.99,.48);ear.rotation.z=sx<0?.12:-.12;ear.castShadow=true;g.add(ear);const eye=new THREE.Mesh(new THREE.BoxGeometry(.07,.07,.025),eyes);eye.position.set(sx*.7,.75,.668);g.add(eye)}
+ const muzzle=new THREE.Mesh(new THREE.BoxGeometry(.2,.12,.08),light);muzzle.position.set(0,.59,.69);g.add(muzzle);const noseMesh=new THREE.Mesh(new THREE.BoxGeometry(.07,.05,.035),nose);noseMesh.position.set(0,.64,.74);g.add(noseMesh);
+ for(const sx of [-.16,.16])for(const sz of [-.25,.25]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.12,.32,.14),fur);leg.position.set(sx,.18,sz);leg.castShadow=true;g.add(leg)}
+ const tail=new THREE.Mesh(new THREE.CylinderGeometry(.055,.08,.62,6),fur);tail.position.set(0,.64,-.53);tail.rotation.x=Math.PI/2.7;tail.rotation.z=-.25;tail.castShadow=true;g.add(tail);
+ g.userData={dir:Math.random()*Math.PI*2,turn:0,phase:i*1.4};cats.push(g);
+}
+// Cats now cycle in and out of the city, like a population system.
+let catSerial=0,catCycleTimer=14+Math.random()*8;
+for(let i=0;i<6;i++){makeCat(-38+(i%3)*16,5+Math.floor(i/3)*24,catSerial++);}
+function removeOneCat(){if(cats.length<=3)return;const index=Math.floor(Math.random()*cats.length);const c=cats.splice(index,1)[0];scene.remove(c);c.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});}
+function spawnOneCat(){if(cats.length>=9)return;const x=-43+Math.random()*82,z=2+Math.random()*46;makeCat(x,z,catSerial++);}
+function updateCats(dt){
+ catCycleTimer-=dt;
+ if(catCycleTimer<=0){
+  // A few cats leave, then a few new cats appear. Keep the count mobile-friendly.
+  const leaving=Math.min(Math.max(0,cats.length-3),1+Math.floor(Math.random()*3));
+  for(let i=0;i<leaving;i++)removeOneCat();
+  const arriving=Math.min(1+Math.floor(Math.random()*3),9-cats.length);
+  for(let i=0;i<arriving;i++)spawnOneCat();
+  catCycleTimer=18+Math.random()*20;
+ }
+ for(const c of cats){const u=c.userData;u.turn-=dt;if(u.turn<=0){u.dir+=(Math.random()-.5)*2.0;u.turn=1.5+Math.random()*3.5}const speed=.7;let nx=c.position.x+Math.sin(u.dir)*speed*dt,nz=c.position.z+Math.cos(u.dir)*speed*dt;if(nx < -55 || nx > 50 || nz < -5 || nz > 52){u.dir+=Math.PI;nx=c.position.x;nz=c.position.z}c.position.x=nx;c.position.z=nz;c.rotation.y=u.dir;u.phase+=dt*5;for(let j=8;j<12;j++)if(c.children[j])c.children[j].position.y=.18+Math.abs(Math.sin(u.phase+(j%2)*Math.PI))*.045;}
+}
+
+// Cows, fenced fields and crop rows for the farm update.
+const cows=[]; const cropPatches=[];
+function makeCow(x,z,i){const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);const white=mat(0xf0eee5),black=mat(0x292b2a),pink=mat(0xd98d91),horn=mat(0xd8c8a2);
+ const body=new THREE.Mesh(new THREE.BoxGeometry(1.15,.82,1.65),white);body.position.y=.92;body.castShadow=true;g.add(body);
+ for(const [sx,sz] of [[-.35,-.35],[.3,.25],[-.28,.48]]){const patch=new THREE.Mesh(new THREE.BoxGeometry(.38,.34,.08),black);patch.position.set(sx,1.08,sz);g.add(patch)}
+ const head=new THREE.Mesh(new THREE.BoxGeometry(.62,.62,.62),white);head.position.set(0,1.23,.95);head.castShadow=true;g.add(head);
+ const muzzle=new THREE.Mesh(new THREE.BoxGeometry(.42,.24,.18),pink);muzzle.position.set(0,1.03,1.29);g.add(muzzle);
+ for(const sx of [-.22,.22]){const h=new THREE.Mesh(new THREE.ConeGeometry(.1,.32,5),horn);h.position.set(sx,1.65,.85);h.rotation.z=sx<0?.35:-.35;g.add(h);for(const sz of [-.5,.5]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.18,.62,.2),white);leg.position.set(sx,.34,sz);leg.castShadow=true;g.add(leg)}}
+ g.userData={dir:Math.random()*6.28,turn:0,milkReady:true,phase:i};cows.push(g)}
+for(let i=0;i<5;i++)makeCow(54+(i%3)*3,-38+Math.floor(i/3)*4,i);
+function makeFarm(x,z,label,kind){const w=15,d=13;box(x,.02,z,w,.12,d,0x8b633d,false);
+ // low wooden fence around the farm, leaving a gap at the front
+ for(const xx of [x-w/2,x+w/2]){box(xx,.42,z, .18,.8,d,0x6b472b,false);for(let yy of [.28,.58])box(xx,.42,z,.22,.12,d,0x9b6c3d,false)}
+ box(x-w/2+.1,.42,z+d/2,2,.8,.18,0x6b472b,false);box(x+w/2-.1,.42,z+d/2,2,.8,.18,0x6b472b,false);
+ const sign=box(x,1.3,z+d/2+.18,5,.65,.16,kind==='wheat'?0xd6a94c:0x4d9848,false);
+ const cv=document.createElement('canvas');cv.width=512;cv.height=96;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.font='bold 38px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(label,256,48);const tex=new THREE.CanvasTexture(cv);const sm=new THREE.Mesh(new THREE.PlaneGeometry(4.8,.62),new THREE.MeshBasicMaterial({map:tex,transparent:true}));sm.position.set(x,1.32,z+d/2+.28);scene.add(sm);
+ for(let row=0;row<5;row++){const rz=z-4.8+row*2.4;box(x,.12,rz,w-1,.12,1.45,kind==='wheat'?0x72502b:0x604b2c,false);for(let col=0;col<8;col++){const px=x-6+col*1.7;if(kind==='wheat'){const stem=new THREE.Mesh(new THREE.CylinderGeometry(.035,.05,.55,5),mat(0x659b32));stem.position.set(px,.48,rz);scene.add(stem);for(let k=0;k<3;k++){const grain=new THREE.Mesh(new THREE.BoxGeometry(.11,.25,.12),mat(0xd7b54c));grain.position.set(px+(k-1)*.07,.72+k*.02,rz+(k%2?-.08:.08));grain.rotation.z=(k-1)*.2;scene.add(grain)}}else{const colors=[0xc94a35,0x4c963d,0x8eaf3e,0x7e9e35];const stem=new THREE.Mesh(new THREE.SphereGeometry(.27,8,6),mat(colors[(row+col)%colors.length]));stem.position.set(px,.42,rz);stem.scale.y=.7;scene.add(stem);const leaf=new THREE.Mesh(new THREE.BoxGeometry(.12,.42,.5),mat(0x2f7838));leaf.position.set(px,.48,rz-.18);leaf.rotation.z=.25;scene.add(leaf)}}}
+ cropPatches.push({x,z,kind,ready:true})}
+makeFarm(64,-35,'Wheat Farm','wheat');makeFarm(-64,-35,'Vegetable Farm','veg');
+function updateCows(dt){for(const c of cows){const u=c.userData;u.turn-=dt;if(u.turn<=0){u.dir+=(Math.random()-.5)*1.2;u.turn=2+Math.random()*3}const nx=c.position.x+Math.sin(u.dir)*.35*dt,nz=c.position.z+Math.cos(u.dir)*.35*dt;if(nx>52&&nx<68&&nz>-42&&nz<-29){c.position.x=nx;c.position.z=nz}else{u.dir+=Math.PI}c.rotation.y=u.dir}}
+
+// Wild deer and elk spawn near existing trees, roam around the forest, and can be hunted for meat.
+const wildlife=[];let wildlifeSerial=0;
+function makeWildlife(x,z,kind){
+ const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);
+ const fur=mat(kind==='elk'?0x795039:0xb9854f),belly=mat(0xe8d5b3),dark=mat(0x49352a),horn=mat(kind==='elk'?0x4d3525:0x5b412d),eye=mat(0x171513);
+ const body=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),fur);body.scale.set(kind==='elk'?.52:.42,.48,kind==='elk'?.9:.72);body.position.set(0,1.05,-.02);body.castShadow=true;g.add(body);
+ const chest=new THREE.Mesh(new THREE.SphereGeometry(.38,9,7),belly);chest.scale.set(.72,.7,.6);chest.position.set(0,.9,.45);g.add(chest);
+ const neck=new THREE.Mesh(new THREE.CylinderGeometry(.18,.27,.68,7),fur);neck.position.set(0,1.35,.53);neck.rotation.x=-.32;neck.castShadow=true;g.add(neck);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.24,9,7),fur);head.scale.set(.78,.85,1.18);head.position.set(0,1.62,.83);head.castShadow=true;g.add(head);
+ const muzzle=new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),dark);muzzle.scale.set(1,.7,1.2);muzzle.position.set(0,1.51,1.03);g.add(muzzle);
+ for(const sx of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(.045,6,5),eye);e.position.set(sx*.17,1.68,.94);g.add(e);const ear=new THREE.Mesh(new THREE.ConeGeometry(.09,.32,5),fur);ear.position.set(sx*.23,1.8,.69);ear.rotation.z=sx*.65;ear.rotation.x=-.25;g.add(ear);
+  if(kind==='elk'){const base=new THREE.Mesh(new THREE.CylinderGeometry(.045,.075,.36,5),horn);base.position.set(sx*.16,1.9,.65);base.rotation.z=sx*.25;g.add(base);const antler=new THREE.Group();antler.position.set(sx*.2,2.08,.65);antler.rotation.z=sx*.18;g.add(antler);const beam=new THREE.Mesh(new THREE.CylinderGeometry(.035,.055,.62,5),horn);beam.position.y=.28;antler.add(beam);beam.rotation.z=-sx*.22;for(let k=0;k<3;k++){const tine=new THREE.Mesh(new THREE.CylinderGeometry(.018,.035,.28,5),horn);tine.position.set(sx*(.06+k*.035),.48+k*.08,0);tine.rotation.z=-sx*.55;antler.add(tine)}}else{const antler=new THREE.Mesh(new THREE.ConeGeometry(.055,.42,5),horn);antler.position.set(sx*.16,1.96,.68);antler.rotation.z=sx*.32;g.add(antler);const tine=new THREE.Mesh(new THREE.ConeGeometry(.035,.2,5),horn);tine.position.set(sx*.24,2.08,.68);tine.rotation.z=-sx*.25;g.add(tine)}
+ }
+ for(const sx of [-.25,.25])for(const sz of [-.48,.48]){const leg=new THREE.Mesh(new THREE.CylinderGeometry(.055,.075,.55,6),dark);leg.position.set(sx,.34,sz);leg.castShadow=true;g.add(leg)}
+ const tail=new THREE.Mesh(new THREE.ConeGeometry(.11,.25,5),belly);tail.position.set(0,1.13,-.78);tail.rotation.x=-Math.PI/2;g.add(tail);
+ g.userData={kind,dir:Math.random()*Math.PI*2,turn:0,phase:wildlifeSerial++,homeX:x,homeZ:z,roam:8+Math.random()*5};wildlife.push(g);return g;
+}
+function spawnWildlife(){const candidates=forestTreePositions.filter(t=>(t.x < -34 || t.z < -58 || t.z > 62) && Math.abs(t.x)<88 && Math.abs(t.z)<105);for(let i=0;i<Math.min(10,candidates.length);i++){const tree=candidates[Math.floor(Math.random()*candidates.length)];const kind=Math.random()<.58?'deer':'elk';makeWildlife(tree.x+(Math.random()-.5)*3,tree.z+(Math.random()-.5)*3,kind)}}
+spawnWildlife();
+function updateWildlife(dt){for(const a of wildlife){const u=a.userData;u.turn-=dt;if(u.turn<=0){u.dir+=(Math.random()-.5)*1.7;u.turn=1.4+Math.random()*3.5}const speed=u.kind==='elk'?.8:1.05;let nx=a.position.x+Math.sin(u.dir)*speed*dt,nz=a.position.z+Math.cos(u.dir)*speed*dt;if(Math.hypot(nx-u.homeX,nz-u.homeZ)>u.roam||nx < -88||nx>88||nz < -108||nz>108){u.dir+=Math.PI;nx=a.position.x;nz=a.position.z}a.position.x=nx;a.position.z=nz;a.rotation.y=u.dir;u.phase+=dt*8;for(let j=0;j<a.children.length;j++){const child=a.children[j];if(child.geometry&&child.geometry.type==='CylinderGeometry'&&child.position.y<.7)child.rotation.x=Math.sin(u.phase+(j%2)*Math.PI)*.12}}}
+
+
+// car
+const car=new THREE.Group();scene.add(car);car.position.set(4,0,7);
+const chassis=new THREE.Mesh(new THREE.BoxGeometry(2.3,.65,4),mat(0xd52332,.45));chassis.position.y=.75;car.add(chassis);
+const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.65,.7,1.8),mat(0x8ed5ec,.3));cabin.position.set(0,1.35,-.2);car.add(cabin);
+for(const x of [-1.15,1.15])for(const z of [-1.25,1.25]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.25,12),mat(0x202328));wheel.rotation.z=Math.PI/2;wheel.position.set(x,.42,z);car.add(wheel)}
+car.visible=true;
+const carPaint=mat(0xd52332,.45);chassis.material=carPaint;
+
+let inCar=false,angle=0,move={up:false,down:false,left:false,right:false},jumpV=0;
+const bindings=[['up','up'],['down','down'],['left','left'],['right','right']];
+for(const [id,key] of bindings){const el=document.getElementById(id);const on=e=>{e.preventDefault();move[key]=true};const off=e=>{e.preventDefault();move[key]=false};el.addEventListener('pointerdown',on);el.addEventListener('pointerup',off);el.addEventListener('pointercancel',off);el.addEventListener('pointerleave',off)}
+const ownedCarsPanel=document.getElementById('ownedCarsPanel');
+const carNames={blueTruck:'Blue Nissan Pickup',sport:'Red Sports Car',suv:'Blue SUV',classic:'Gold Classic',benz2025:'Black 2025 Mercedes-Benz',landcruiser:'Toyota Land Cruiser',prado:'Toyota Land Cruiser Prado',passat2018:'Volkswagen Passat 2018',lambo:'Lamborghini'};
+function refreshOwnedCars(){const host=document.getElementById('ownedCarChoices');host.innerHTML='';const unique=[...new Set(ownedCars)];if(!unique.length){host.textContent='You have not bought a car yet. Visit the dealership.';return}for(const type of unique){const b=document.createElement('button');b.className='panelBtn';b.textContent=(type===currentCarType?'✅ ':'🚗 ')+(carNames[type]||type)+(type===currentCarType?' • Current car':'');b.onclick=()=>{setPurchasedCar(type);car.position.copy(player.position);inCar=true;document.getElementById('car').textContent='🚶 Exit Car';ownedCarsPanel.style.display='none';ensureAudio();updateEngine(true,0);saveGame();document.getElementById('note').textContent=`سوار ${carNames[type]||type} شدی!`;document.getElementById('note').style.display='block'};host.appendChild(b)}}
+document.getElementById('closeOwnedCars').onclick=()=>ownedCarsPanel.style.display='none';
+document.getElementById('car').onclick=()=>{sfx('open');if(inCar){inCar=false;document.getElementById('car').textContent='🚗 Enter Car';updateEngine(false);saveGame();return}refreshOwnedCars();ownedCarsPanel.style.display='block'};
+document.getElementById('jump').onclick=()=>{if(player.position.y<.1){jumpV=5.5;sfx('jump')}};
+// Tap/click the actual 3D stove in the cafe or the selling counter in the store.
+const interactRaycaster=new THREE.Raycaster();const interactPointer=new THREE.Vector2();
+function tryWorldInteraction(ev){
+ const rect=renderer.domElement.getBoundingClientRect();interactPointer.x=((ev.clientX-rect.left)/rect.width)*2-1;interactPointer.y=-((ev.clientY-rect.top)/rect.height)*2+1;
+ interactRaycaster.setFromCamera(interactPointer,camera);const hits=interactRaycaster.intersectObjects(scene.children,true);const hit=hits.find(h=>h.object.userData&&h.object.userData.interaction);if(!hit)return;
+ const action=hit.object.userData.interaction;const p=inCar?car.position:player.position;
+ if(action==='cafe'){
+  if(Math.hypot(p.x+52,p.z-30)>7.5){document.getElementById('cafeMsg').textContent='Enter the cafe and go near the stove first.';return}
+  document.getElementById('cafeMsg').textContent='You selected the stove. Now choose ingredients to cook.';refreshCafe();cafePanel.style.display='block';
+ } else if(action==='sell'){
+  if(Math.hypot(p.x+10,p.z-30)>7.5){document.getElementById('sellStoreMsg').textContent='Enter the shop and go near the sales counter first.';return}
+  document.getElementById('sellStoreMsg').textContent='You selected the sales counter. Tap the item you want to sell.';refreshSellStore();sellStorePanel.style.display='block';
+ }
+}
+renderer.domElement.addEventListener('click',tryWorldInteraction);
+let dragging=false,lastX=0;renderer.domElement.style.touchAction='none';renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;try{renderer.domElement.setPointerCapture(e.pointerId)}catch(_){}});const stopDrag=()=>{dragging=false};renderer.domElement.addEventListener('pointerup',stopDrag);renderer.domElement.addEventListener('pointercancel',stopDrag);renderer.domElement.addEventListener('lostpointercapture',stopDrag);renderer.domElement.addEventListener('pointermove',e=>{if(dragging){angle-=(e.clientX-lastX)*.009;lastX=e.clientX}});
+// Fresh-start release: clear old local progress once on each browser, then keep new progress.
+try{if(localStorage.getItem('parsCityFreshStartV1')!=='done'){localStorage.removeItem('parsCitySaveV1');localStorage.removeItem('parsCityProfileId');localStorage.setItem('parsCityFreshStartV1','done');}}catch(e){}
+// Bakery economy, 50-slot bag and cafe work/crafting
+let money=30000;const inventory=[];let selectedInventoryIndex=-1;const droppedItems=[];let currentCarType='blueTruck';let ownedCars=['blueTruck'];let loadedSave=null;try{loadedSave=JSON.parse(localStorage.getItem('parsCitySaveV1')||'null');if(loadedSave&&typeof loadedSave==='object'){if(Number.isFinite(loadedSave.money))money=Math.max(0,loadedSave.money);if(Array.isArray(loadedSave.inventory))inventory.push(...loadedSave.inventory.filter(x=>typeof x==='string').slice(0,50));if(Array.isArray(loadedSave.ownedCars)){ownedCars=[...new Set(loadedSave.ownedCars.filter(x=>['blueTruck','sport','suv','classic','benz2025','landcruiser','prado','passat2018','lambo'].includes(x)))];if(!ownedCars.length)ownedCars=['blueTruck'];}if(typeof loadedSave.carType==='string'&&['blueTruck','sport','suv','classic','benz2025','landcruiser','prado','passat2018','lambo'].includes(loadedSave.carType))currentCarType=loadedSave.carType;if(!Array.isArray(loadedSave.ownedCars)&&typeof loadedSave.carType==='string')ownedCars=[loadedSave.carType];}}catch(e){loadedSave=null}const bagPanel=document.getElementById('bagPanel'),shopPanel=document.getElementById('shopPanel');
+const itemIcons={'Bread':'🥖','Coffee':'☕','Cake':'🍰','Pizza':'🍕','Fried Egg':'🍳','Hot Dog':'🌭','Burger':'🍔','Steak':'🥩','Koobideh Kebab':'🍢','Milk':'🥛','Raw Chicken':'🍗','Beef':'🥩','Cowhide':'🟫','Wheat':'🌾','Tomato':'🍅','Carrot':'🥕','Potato':'🥔','Lettuce':'🥬','Egg':'🥚','Venison':'🥩','Elk Meat':'🥩'};
+const craftItems=[{name:'Coffee',icon:'☕',needs:{'Milk':1}},{name:'Pizza',icon:'🍕',needs:{'Milk':1,'Beef':1,'Wheat':1}},{name:'Koobideh Kebab',icon:'🍢',needs:{'Beef':2}},{name:'Steak',icon:'🥩',needs:{'Beef':1}},{name:'Fried Egg',icon:'🍳',needs:{'Egg':1}},{name:'Hot Dog',icon:'🌭',needs:{'Beef':1,'Wheat':1,'Lettuce':1}}];
+let cafeOrder=null;let dayKey=new Date().toLocaleDateString('en-CA');let ordersToday=Number(localStorage.getItem('parsCafeDay')===dayKey?localStorage.getItem('parsCafeOrders')||0:0);
+const governmentRewards={'Coffee':25,'Pizza':40};
+function cafeDailySave(){localStorage.setItem('parsCafeDay',dayKey);localStorage.setItem('parsCafeOrders',String(ordersToday));}
+function refreshCafe(){const today=new Date().toLocaleDateString('en-CA');if(today!==dayKey){dayKey=today;ordersToday=0;cafeOrder=null;cafeDailySave()}document.getElementById('cafeStats').textContent=`coins: ${fa(money)} • سفارش‌های امروز: ${fa(ordersToday)}/30`;document.getElementById('governmentOrder').textContent=cafeOrder?`سفارش دولت: ${itemIcons[cafeOrder]||''} ${cafeOrder} • پاداش ${fa(governmentRewards[cafeOrder])} coins`:'No government order received yet.';const cb=document.getElementById('craftButtons');cb.innerHTML='';for(const it of craftItems){const b=document.createElement('button');b.className='panelBtn';b.textContent=`${it.icon} ${it.name} • ${Object.entries(it.needs).map(([n,q])=>`${n} ×${fa(q)}`).join(' + ')}`;b.onclick=()=>craftCafeItem(it);cb.appendChild(b)}}
+function craftCafeItem(it){const msg=document.getElementById('cafeMsg');if(inventory.length>=50){msg.textContent='Your inventory is full! Make some room first.';return}for(const [name,count] of Object.entries(it.needs)){const have=inventory.filter(x=>x===name).length;if(have<count){msg.textContent=`مواد کافی نیست: ${name} ×${fa(count)} لازم داری.`;return}}for(const [name,count] of Object.entries(it.needs)){for(let n=0;n<count;n++)inventory.splice(inventory.indexOf(name),1)}inventory.push(it.name);msg.textContent=`${it.icon} ${it.name} crafted using ingredients!`;sfx('craft');updateHud();refreshCafe()}
+
+const fa=n=>String(n).replace(/[0-9]/g,d=>'0123456789'[Number(d)]);
+function updateHud(){document.getElementById('moneyHud').textContent=fa(money);document.getElementById('bagBtn').textContent=`🎒 Inventory (${fa(inventory.length)}/50)`;document.getElementById('bagCount').textContent=`${fa(inventory.length)} از 50 slots used`;document.getElementById('shopMoney').textContent=`Your money: ${fa(money)} coins`;const grid=document.getElementById('bagGrid');grid.innerHTML='';for(let i=0;i<50;i++){const el=document.createElement('div');el.className='slot'+(i===selectedInventoryIndex?' selected':'');el.textContent=i<inventory.length?`${itemIcons[inventory[i]]||'📦'} ${inventory[i]}`:fa(i+1);if(i<inventory.length)el.onclick=()=>{selectedInventoryIndex=i;document.getElementById('dropMsg').textContent=`انتخاب شد: ${itemIcons[inventory[i]]||'📦'} ${inventory[i]}`;updateHud()};grid.appendChild(el)}if(selectedInventoryIndex>=inventory.length)selectedInventoryIndex=inventory.length-1;if(document.getElementById('cafePanel'))refreshCafe();saveGame()}
+const sellStorePanel=document.getElementById('sellStorePanel');
+const sellPrices={'Bread':4,'Coffee':18,'Pizza':30,'Fried Egg':8,'Hot Dog':15,'Steak':22,'Koobideh Kebab':20,'Milk':8,'Raw Chicken':12,'Beef':16,'Cowhide':6,'Wheat':3,'Tomato':2,'Carrot':2,'Potato':2,'Lettuce':2,'Egg':5,'Cake':18,'Burger':16,'Venison':24,'Elk Meat':30};
+function refreshSellStore(){document.getElementById('sellStoreMoney').textContent=`Your money: ${fa(money)} coins`;const host=document.getElementById('sellItems');host.innerHTML='';const counts={};for(const item of inventory)counts[item]=(counts[item]||0)+1;const names=Object.keys(counts);if(!names.length){host.textContent='Your inventory is empty. Collect something first.';return}for(const name of names){const price=sellPrices[name]||5;const b=document.createElement('button');b.className='panelBtn';b.textContent=`${itemIcons[name]||'📦'} ${name} ×${fa(counts[name])} • ${fa(price)} coins`;b.onclick=()=>{const i=inventory.indexOf(name);if(i<0)return;inventory.splice(i,1);money+=price;sfx('sell');document.getElementById('sellStoreMsg').textContent=`One ${name} فروختی و ${fa(price)} coins.`;updateHud();refreshSellStore()};host.appendChild(b)}}
+document.getElementById('closeSellStore').onclick=()=>sellStorePanel.style.display='none';
+document.getElementById('sellAllItems').onclick=()=>{if(!inventory.length){document.getElementById('sellStoreMsg').textContent='Inventoryت خالی است.';return}let earned=0;for(const name of inventory)earned+=sellPrices[name]||5;const sold=inventory.length;inventory.length=0;money+=earned;sfx('sell');document.getElementById('sellStoreMsg').textContent=`All ${fa(sold)} items sold; you received ${fa(earned)} coins.`;updateHud();refreshSellStore()};
+
+function makeDroppedItem(name,position){const colorMap={'Bread':0xc9944d,'Coffee':0x654321,'Pizza':0xd9a441,'Fried Egg':0xffe58a,'Hot Dog':0xb95d37,'Burger':0x9b6739,'Steak':0x9c3b32,'Koobideh Kebab':0xb46a39,'Milk':0xf4f4ef,'Raw Chicken':0xd9a18c,'Beef':0xb94b45,'Cowhide':0x7a563b,'Wheat':0xc9a43b,'Tomato':0xd9342b,'Carrot':0xef7c27,'Potato':0xb99a6b,'Lettuce':0x5baf55,'Egg':0xf4e9c9,'Venison':0xa83f36,'Elk Meat':0x8c302b};const mesh=new THREE.Mesh(new THREE.BoxGeometry(.42,.34,.42),new THREE.MeshStandardMaterial({color:colorMap[name]||0x58a6a6,roughness:.8}));mesh.position.set(position.x,.22,position.z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.isDroppedItem=true;mesh.userData.itemName=name;const canvas=document.createElement('canvas');canvas.width=256;canvas.height=96;const ctx=canvas.getContext('2d');ctx.clearRect(0,0,256,96);ctx.font='48px sans-serif';ctx.textAlign='center';ctx.fillText(itemIcons[name]||'📦',128,48);ctx.font='bold 24px sans-serif';ctx.lineWidth=5;ctx.strokeStyle='#173047';ctx.strokeText(name,128,82);ctx.fillStyle='#ffffff';ctx.fillText(name,128,82);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const label=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));label.scale.set(1.35,.5,1);label.position.set(0,.55,0);mesh.add(label);mesh.userData.itemLabel=label;scene.add(mesh);droppedItems.push({name,mesh});return mesh}
+function saveGame(){try{const save={money,inventory:inventory.slice(0,50),carType:currentCarType,ownedCars:[...new Set(ownedCars)],playerPos:{x:player.position.x,y:player.position.y,z:player.position.z},carPos:{x:car.position.x,y:car.position.y,z:car.position.z},angle,droppedItems:droppedItems.map(d=>({name:d.name,x:d.mesh.position.x,z:d.mesh.position.z}))};localStorage.setItem('parsCitySaveV1',JSON.stringify(save));if(window.parsSocket&&window.parsSocket.connected&&window.parsOnlineJoined&&window.parsProfileReady)window.parsSocket.emit('saveProfile',save)}catch(e){}}
+function nearestDroppedItem(maxDistance=2.8){const p=inCar?car.position:player.position;let best=null,bestD=maxDistance;for(const d of droppedItems){const dist=Math.hypot(p.x-d.mesh.position.x,p.z-d.mesh.position.z);if(dist<bestD){best=d;bestD=dist}}return best}
+document.getElementById('dropBtn').onclick=()=>{if(selectedInventoryIndex<0||selectedInventoryIndex>=inventory.length){document.getElementById('dropMsg').textContent='Select an item in your inventory first.';return}const name=inventory[selectedInventoryIndex];const p=inCar?car.position:player.position;const pos={x:p.x-Math.sin(angle)*1.5,z:p.z-Math.cos(angle)*1.5};makeDroppedItem(name,pos);sfx('drop');inventory.splice(selectedInventoryIndex,1);selectedInventoryIndex=-1;document.getElementById('dropMsg').textContent=`${itemIcons[name]||'📦'} ${name} dropped on the ground.`;updateHud()};
+document.getElementById('pickupBtn').onclick=()=>{const d=nearestDroppedItem();if(!d){document.getElementById('note').textContent='No item nearby. Move closer to an item on the ground.';document.getElementById('note').style.display='block';return}if(inventory.length>=50){document.getElementById('note').textContent='Your inventory is full. Make some room first.';document.getElementById('note').style.display='block';return}inventory.push(d.name);sfx('pickup');scene.remove(d.mesh);d.mesh.geometry.dispose();d.mesh.material.dispose();if(d.mesh.userData.itemLabel){d.mesh.userData.itemLabel.material.map.dispose();d.mesh.userData.itemLabel.material.dispose()}droppedItems.splice(droppedItems.indexOf(d),1);document.getElementById('note').textContent=`${itemIcons[d.name]||'📦'} ${d.name} picked up!`;document.getElementById('note').style.display='block';updateHud()};
+document.getElementById('bagBtn').onclick=()=>{updateHud();bagPanel.style.display='block'};document.getElementById('closeBag').onclick=()=>bagPanel.style.display='none';
+document.getElementById('bakeryBtn').onclick=()=>{const p=inCar?car.position:player.position;const dist=Math.hypot(p.x-25,p.z-30);if(dist>12){shopPanel.style.display='none';document.getElementById('shopMsg').textContent='Move closer to the bakery to buy bread.';return}document.getElementById('shopMsg').textContent='';updateHud();shopPanel.style.display='block'};
+document.getElementById('closeShop').onclick=()=>shopPanel.style.display='none';document.getElementById('buyBread').onclick=()=>{if(inventory.length>=50){document.getElementById('shopMsg').textContent='Your inventory is full! Make some room first.';return}if(money<10){document.getElementById('shopMsg').textContent='Not enough money.';return}money-=10;inventory.push('Bread');sfx('buy');document.getElementById('shopMsg').textContent='You bought a loaf of bread! 🥖';updateHud()};
+
+const farmPanel=document.getElementById('farmPanel');const farmMsg=document.getElementById('farmMsg');
+function nearbyCow(){const p=inCar?car.position:player.position;return cows.find(c=>Math.hypot(c.position.x-p.x,c.position.z-p.z)<4)}
+function nearbyAnimal(){const p=inCar?car.position:player.position;let all=[...cows,...chickens,...wildlife];all.sort((a,b)=>Math.hypot(a.position.x-p.x,a.position.z-p.z)-Math.hypot(b.position.x-p.x,b.position.z-p.z));return all[0]&&Math.hypot(all[0].position.x-p.x,all[0].position.z-p.z)<4?all[0]:null}
+function nearCrop(kind){const p=inCar?car.position:player.position;return cropPatches.find(c=>c.kind===kind&&Math.hypot(c.x-p.x,c.z-p.z)<13)}
+function addItem(name,count=1){if(inventory.length+count>50){farmMsg.textContent='Inventory پر است؛ اول جا باز کن.';return false}for(let i=0;i<count;i++)inventory.push(name);updateHud();return true}
+document.getElementById('farmBtn').onclick=()=>{farmMsg.textContent='';farmPanel.style.display='block'};document.getElementById('closeFarm').onclick=()=>farmPanel.style.display='none';
+document.getElementById('collectEggs').onclick=()=>{const p=inCar?car.position:player.position;let found=-1,best=3.2;for(let i=0;i<eggs.length;i++){const d=Math.hypot(p.x-eggs[i].position.x,p.z-eggs[i].position.z);if(d<best){best=d;found=i}}if(found<0){farmMsg.textContent='Eggی نزدیکت نیست؛ اطراف مرغ‌ها را بگرد.';return}if(inventory.length>=50){farmMsg.textContent='No inventory space.';return}const e=eggs.splice(found,1)[0];scene.remove(e);e.geometry.dispose();e.material.dispose();inventory.push('Egg');farmMsg.textContent='One Egg جمع کردی! 🥚';updateHud()};
+document.getElementById('milkCow').onclick=()=>{const c=nearbyCow();if(!c){farmMsg.textContent='Move closer to a cow to milk it.';return}if(!c.userData.milkReady){farmMsg.textContent='This cow has no milk right now. Come back later.';return}if(addItem('Milk')){c.userData.milkReady=false;farmMsg.textContent='You collected fresh milk! 🥛';setTimeout(()=>{if(c.parent)c.userData.milkReady=true},45000)}};
+document.getElementById('slaughterAnimal').onclick=()=>{const a=nearbyAnimal();if(!a){farmMsg.textContent='Move near a deer, elk, cow, or chicken to hunt or butcher it.';return}const isCow=cows.includes(a),isChicken=chickens.includes(a),isWild=wildlife.includes(a);const meatName=isWild?(a.userData.kind==='elk'?'Elk Meat':'Venison'):isCow?'Beef':'Raw Chicken';const extra=isCow?['Cowhide']:[];if(inventory.length+1+extra.length>50){farmMsg.textContent='No inventory space.';return}animalCry(isWild?(a.userData.kind==='elk'?'elk':'deer'):isCow?'cow':'chicken');scene.remove(a);if(isCow)cows.splice(cows.indexOf(a),1);else if(isChicken)chickens.splice(chickens.indexOf(a),1);else if(isWild)wildlife.splice(wildlife.indexOf(a),1);inventory.push(meatName,...extra);farmMsg.textContent=isWild?(a.userData.kind==='elk'?'Elk hunted! You got elk meat! 🥩':'Deer hunted! You got venison! 🥩'):isCow?'Cow butchered. You got beef and cowhide. 🥩':'Chicken butchered. You got raw chicken. 🍗';updateHud()};
+document.getElementById('harvestWheat').onclick=()=>{if(!nearCrop('wheat')){farmMsg.textContent='Go to the wheat field to harvest wheat.';return}if(addItem('Wheat',3))farmMsg.textContent='3 Wheat برداشت کردی! 🌾'};
+document.getElementById('harvestVeg').onclick=()=>{if(!nearCrop('veg')){farmMsg.textContent='Go to the vegetable field to harvest vegetables.';return}const veg=['Tomato','Carrot','Potato','Lettuce'];if(addItem(veg[Math.floor(Math.random()*veg.length)],3))farmMsg.textContent='3 عدد سبزی تازه برداشت کردی! 🥕'};
+
+const cafePanel=document.getElementById('cafePanel');document.getElementById('closeCafe').onclick=()=>cafePanel.style.display='none';document.getElementById('getOrderBtn').onclick=()=>{refreshCafe();if(ordersToday>=30){document.getElementById('cafeMsg').textContent='Today’s quota is used up. Come back tomorrow!';return}if(cafeOrder){document.getElementById('cafeMsg').textContent='Deliver your current order first.';return}const choices=['Coffee','Pizza'];cafeOrder=choices[Math.floor(Math.random()*choices.length)];document.getElementById('cafeMsg').textContent=`دولت ${cafeOrder} می‌خواهد؛ از بخش ساخت Item آماده‌اش کن.`;refreshCafe()};document.getElementById('deliverOrderBtn').onclick=()=>{const msg=document.getElementById('cafeMsg');if(!cafeOrder){msg.textContent='Get a government order first.';return}const idx=inventory.indexOf(cafeOrder);if(idx<0){msg.textContent=`${cafeOrder}  is not in your inventory. Craft it first.`;return}inventory.splice(idx,1);money+=governmentRewards[cafeOrder];ordersToday++;cafeDailySave();msg.textContent=`Order delivered! ${fa(governmentRewards[cafeOrder])} coins. (${fa(ordersToday)}/30)`;cafeOrder=null;updateHud();refreshCafe()};document.getElementById('craftButtons').innerHTML='';
+const dealerPanel=document.getElementById('dealerPanel');const carPrices={blueTruck:250,sport:300,suv:500,classic:400,benz2025:30000,landcruiser:12000,prado:10000,passat2018:8000,lambo:25000};const carColors={blueTruck:0x1679d3,sport:0xd52332,suv:0x2478c8,classic:0xd7a52b,benz2025:0x101318,landcruiser:0xeeeeea,prado:0x252b32,passat2018:0xb9bdc4,lambo:0xffc400};
+function updateDealer(){document.getElementById('dealerMoney').textContent=`Your money: ${fa(money)} coins • قیمت: ${fa(carPrices[document.getElementById('carChoice').value])} coins`;}
+document.getElementById('dealerBtn').onclick=()=>{const p=inCar?car.position:player.position;if(Math.hypot(p.x+27,p.z-30)>17){document.getElementById('dealerMsg').textContent='Move closer to the car dealership to buy a car.';return}document.getElementById('dealerMsg').textContent='';updateDealer();dealerPanel.style.display='block'};
+document.getElementById('carChoice').onchange=updateDealer;document.getElementById('closeDealer').onclick=()=>dealerPanel.style.display='none';
+function setPurchasedCar(type){
+ currentCarType=type;
+ const pickup=type==='blueTruck',small=false,benz=type==='benz2025',suvLike=['landcruiser','prado'].includes(type),sportLike=type==='lambo';
+ chassis.geometry.dispose();chassis.geometry=new THREE.BoxGeometry(suvLike?2.55:(sportLike?2.15:(benz?2.38:2.3)),.62,pickup?4.3:(suvLike?4.45:(sportLike?3.65:(benz?4.15:3.8))));chassis.position.y=.72;chassis.material.color.setHex(carColors[type]);
+ cabin.geometry.dispose();cabin.geometry=new THREE.BoxGeometry(small?1.42:(benz?1.72:1.65),.68,pickup?1.65:(small?1.5:(benz?2.0:1.9)));cabin.position.set(0,1.32,pickup?-.65:-.15);
+ car.children.filter(o=>o.userData.extraPart).forEach(o=>{car.remove(o);o.geometry.dispose();o.material.dispose()});
+ // Extra realistic exterior: sculpted hood/trunk, roof, bumpers, glass, mirrors, handles, wheel rims and light clusters.
+ const paint=mat(carColors[type],.27),darkGlass=mat(0x244354,.18),rubber=mat(0x171a1d,.5),chrome=mat(0xc9d1d8,.22),darkTrim=mat(0x30363c,.4);
+ function detail(geo,material,x,y,z,rx=0,ry=0,rz=0){const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);m.castShadow=true;m.userData.extraPart=true;car.add(m);return m}
+ const width=small?1.95:(benz?2.38:(pickup?2.18:2.3)),length=pickup?4.3:(benz?4.15:3.8),frontZ=-length/2,rearZ=length/2;
+ detail(new THREE.BoxGeometry(width*.91,.12,small?1.08:1.25),paint,0,.99,frontZ+.72);
+ detail(new THREE.BoxGeometry(width*.89,.13,small?.65:.82),paint,0,.97,rearZ-.45);
+ detail(new THREE.BoxGeometry(width*.78,.10,pickup?1.65:1.78),paint,0,1.72,pickup?-.62:-.12);
+ detail(new THREE.BoxGeometry(width*.94,.18,.14),darkTrim,0,.48,frontZ-.03);
+ detail(new THREE.BoxGeometry(width*.94,.16,.14),darkTrim,0,.48,rearZ+.03);
+ // front grille and separate LED headlamps
+ detail(new THREE.BoxGeometry(benz?.72:.62,.24,.055),benz?chrome:darkTrim,0,.75,frontZ-.055);
+ for(const side of [-1,1]){
+   detail(new THREE.BoxGeometry(.34,.13,.06),mat(0xf5f4e8,.2),side*(width*.34),.87,frontZ-.065);
+   detail(new THREE.BoxGeometry(.25,.16,.06),mat(0xc5282f,.25),side*(width*.36),.78,rearZ+.065);
+   detail(new THREE.BoxGeometry(.045,.018,length*.38),darkTrim,side*(width*.49),.76,0);
+   detail(new THREE.BoxGeometry(.16,.10,.18),paint,side*(width*.49),1.18,-.42);
+   detail(new THREE.BoxGeometry(.035,.025,.14),chrome,side*(width*.49),1.08,-.42);
+   // side windows
+   detail(new THREE.BoxGeometry(.035,.37,pickup?.62:.84),darkGlass,side*(width*.405),1.39,-.58);
+   if(!pickup)detail(new THREE.BoxGeometry(.035,.34,.57),darkGlass,side*(width*.405),1.38,.28);
+   // handles and mirror indicators
+   detail(new THREE.BoxGeometry(.045,.045,.16),chrome,side*(width*.502),1.03,.05);
+   detail(new THREE.BoxGeometry(.20,.12,.22),paint,side*(width*.49),1.23,-.63);
+   // alloy rims on both sides of each wheel
+   for(const wz of [-1.25,1.25])detail(new THREE.CylinderGeometry(.205,.205,.27,16),chrome,side*1.15,.42,wz,0,0,Math.PI/2);
+ }
+ detail(new THREE.BoxGeometry(.44,.16,.06),mat(0xfff1b5,.15),0,.78,frontZ-.07);
+ if(benz){detail(new THREE.BoxGeometry(.11,.11,.07),chrome,0,.94,frontZ-.08);detail(new THREE.BoxGeometry(.035,.025,1.0),chrome,0,1.045,-1.38)}
+ if(pickup){for(const side of [-1,1])detail(new THREE.BoxGeometry(.12,.43,1.5),paint,side*.92,.94,1.14);detail(new THREE.BoxGeometry(1.78,.38,.12),paint,0,.9,1.83);detail(new THREE.BoxGeometry(1.55,.035,1.12),darkTrim,0,.91,1.08)}
+ if(type==='sport'){detail(new THREE.BoxGeometry(1.35,.09,.22),darkTrim,0,1.3,1.68);detail(new THREE.BoxGeometry(.09,.25,.12),paint,-.53,1.17,1.68);detail(new THREE.BoxGeometry(.09,.25,.12),paint,.53,1.17,1.68)}
+ if(type==='classic'){detail(new THREE.SphereGeometry(.12,12,8),chrome,0,1.02,frontZ-.08);detail(new THREE.BoxGeometry(.48,.09,.08),chrome,0,.68,frontZ-.08)}
+ }
+document.getElementById('buyCar').onclick=()=>{const type=document.getElementById('carChoice').value,price=carPrices[type];if(ownedCars.includes(type)){document.getElementById('dealerMsg').textContent='You already own this car. Tap “Enter Car” to drive it.';return}if(money<price){document.getElementById('dealerMsg').textContent='Not enough money.';return}money-=price;ownedCars.push(type);sfx('buy');setPurchasedCar(type);document.getElementById('dealerMsg').textContent='Car purchased! Tap “Enter Car” to choose a car. 🚗';updateHud();updateDealer();saveGame()};
+if(loadedSave){try{if(carPrices[loadedSave.carType])setPurchasedCar(loadedSave.carType);if(loadedSave.playerPos&&Number.isFinite(loadedSave.playerPos.x)&&Number.isFinite(loadedSave.playerPos.z))player.position.set(loadedSave.playerPos.x,Math.max(0,Number(loadedSave.playerPos.y)||0),loadedSave.playerPos.z);if(loadedSave.carPos&&Number.isFinite(loadedSave.carPos.x)&&Number.isFinite(loadedSave.carPos.z))car.position.set(loadedSave.carPos.x,0,loadedSave.carPos.z);if(Number.isFinite(loadedSave.angle))angle=loadedSave.angle;if(Array.isArray(loadedSave.droppedItems))for(const d of loadedSave.droppedItems.slice(0,100)){if(d&&typeof d.name==='string'&&Number.isFinite(d.x)&&Number.isFinite(d.z))makeDroppedItem(d.name,{x:d.x,z:d.z})}}catch(e){}}
+updateHud();saveGame();
+const clock=new THREE.Clock();let nextAnimalCall=performance.now()+6500;let lastAutosave=0;
+function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);if(performance.now()-lastAutosave>2000){saveGame();lastAutosave=performance.now()}if(soundEnabled&&performance.now()>nextAnimalCall){const herd=[...cows.map(a=>'cow'),...chickens.map(a=>'chicken'),...wildlife.map(a=>a.userData.kind==='elk'?'elk':'deer')];if(herd.length&&Math.random()<.72)animalCry(herd[Math.floor(Math.random()*herd.length)]);nextAnimalCall=performance.now()+8500+Math.random()*9000}updateChickens(dt);updateCats(dt);updateCows(dt);updateWildlife(dt);let forward=(move.up?1:0)-(move.down?1:0),side=(move.right?1:0)-(move.left?1:0);
+if(forward||side){if(inCar)updateEngine(true,Math.min(1,Math.abs(forward)+Math.abs(side)));else if(performance.now()-lastStepAt>330){sfx('step');lastStepAt=performance.now()}const speed=inCar?12:5;const obj=inCar?car:player;if(inCar)car.rotation.y=angle;else player.rotation.y=angle+Math.PI;const dx=(-Math.sin(angle)*forward+Math.cos(angle)*side)*speed*dt;const dz=(-Math.cos(angle)*forward-Math.sin(angle)*side)*speed*dt;const radius=inCar?1.35:.42;const nx=obj.position.x+dx,nz=obj.position.z+dz;
+// Resolve X and Z separately so the player slides along walls instead of passing through them.
+if(!blocked(nx+Math.sign(dx)*radius,nz))obj.position.x=nx;
+if(!blocked(obj.position.x,nz+Math.sign(dz)*radius))obj.position.z=nz;
+if(inCar)player.position.copy(car.position)}
+if(inCar)updateEngine(true,Math.min(1,Math.abs(forward)+Math.abs(side)));else updateEngine(false);if(!inCar){jumpV-=14*dt;player.position.y=Math.max(0,player.position.y+jumpV*dt);if(player.position.y===0)jumpV=0}
+const target=inCar?car.position:player.position;
+// When near either interior, remove the roof from view and bring the camera closer so the stove/counter are visible on phones.
+const cafeDist=Math.hypot(target.x+52,target.z-30),storeDist=Math.hypot(target.x+10,target.z-30);
+const insideBuilding=cafeDist<10||storeDist<9;
+for(const r of interiorRoofs)r.mesh.visible=!(Math.hypot(target.x-r.x,target.z-r.z)<10);
+const camDist=insideBuilding?4.8:9,camHeight=insideBuilding?3.2:5;
+const back=new THREE.Vector3(Math.sin(angle)*camDist,camHeight,Math.cos(angle)*camDist);camera.position.lerp(new THREE.Vector3(target.x+back.x,target.y+back.y,target.z+back.z),.16);camera.lookAt(target.x,target.y+1.1,target.z);
+renderer.render(scene,camera)}
+animate();addEventListener('pagehide',saveGame);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(()=>{
+ const state=document.getElementById('onlineState'), count=document.getElementById('onlinePlayers'), panel=document.getElementById('onlinePanel');
+ let socket=null, joined=false, others={}, selectedServer='PARS-CITY';
+ let profileId=localStorage.getItem('parsCityProfileId'); if(!profileId){profileId='pc_'+Array.from(crypto.getRandomValues(new Uint8Array(18))).map(x=>x.toString(16).padStart(2,'0')).join('');localStorage.setItem('parsCityProfileId',profileId)}
+ window.parsOnlineJoined=false; window.parsProfileReady=false;
+ const choices=[...document.querySelectorAll('.serverChoice')];
+ document.getElementById('reopenServers').addEventListener('click',()=>{panel.style.display='block';document.getElementById('reopenServers').style.display='none';document.getElementById('showServers').style.display='block';document.getElementById('serverPicker').style.display='none';showState('To choose again, tap “Choose Server”.');});
+ document.getElementById('showServers').addEventListener('click',()=>{document.getElementById('serverPicker').style.display='block';document.getElementById('showServers').style.display='none';showState('Enter your player name, then choose a server.');});
+ function showState(msg){state.textContent=msg;}
+ function updateCount(){count.textContent='Other players in '+selectedServer+': '+Object.keys(others).length+' (of 35 slots)';}
+ function join(server){
+   selectedServer=server; const name=(document.getElementById('onlineName').value||'Player').trim();
+   if(typeof io!=='function'){showState('Online server unavailable. The game will open offline.');setTimeout(()=>{panel.style.display='none';document.getElementById('reopenServers').style.display='block';},900);return;}
+   if(!socket){socket=io({transports:['websocket','polling']});window.parsSocket=socket;
+     socket.on('connect',()=>{showState('Internet connected. Joining '+selectedServer+'...');socket.emit('joinRoom',{name:(document.getElementById('onlineName').value||'Player').trim(),server:selectedServer,profileId});});
+     socket.on('connect_error',()=>{joined=false;showState('Could not connect to the main server. The online server must be running and reachable to enter the city.');setTimeout(()=>{if(!socket.connected){panel.style.display='none';document.getElementById('reopenServers').style.display='block';}},1100);});
+     socket.on('disconnect',()=>{joined=false;window.parsOnlineJoined=false;window.parsProfileReady=false; window.parsProfileReady=false;others={};window.dispatchEvent(new CustomEvent('pars-city-players',{detail:{type:'reset',players:[]}}));updateCount();showState('Server connection lost. Access to the city is paused until the connection returns.');});
+     socket.on('roomJoined',d=>{joined=true;window.parsOnlineJoined=true;others={};(d.players||[]).forEach(p=>{if(p.id!==d.id)others[p.id]=p});window.dispatchEvent(new CustomEvent('pars-city-players',{detail:{type:'reset',players:Object.values(others)}}));showState('وارد '+d.room+' شدی!');updateCount();panel.style.display='none';document.getElementById('reopenServers').style.display='block';});
+     socket.on('roomFull',d=>{showState((d.server||selectedServer)+'  is full. Choose another server.');});
+     socket.on('profileData',d=>{window.parsProfileReady=true;if(!d||!d.profile){saveGame();showState('New account created. Start from scratch.');return;}try{const v=d.profile;localStorage.setItem('parsCitySaveV1',JSON.stringify(v));if(Number.isFinite(v.money))money=Math.max(0,v.money);if(Array.isArray(v.inventory)){inventory.length=0;inventory.push(...v.inventory.filter(x=>typeof x==='string').slice(0,50));}if(Array.isArray(v.ownedCars)&&v.ownedCars.length)ownedCars=[...new Set(v.ownedCars)];if(v.carType&&carPrices[v.carType])setPurchasedCar(v.carType);if(v.playerPos&&Number.isFinite(v.playerPos.x)&&Number.isFinite(v.playerPos.z))player.position.set(v.playerPos.x,0,v.playerPos.z);if(Array.isArray(v.droppedItems)){for(const d of droppedItems.splice(0)){try{scene.remove(d.mesh)}catch(_){}}for(const d of v.droppedItems.slice(0,100))if(d&&typeof d.name==='string'&&Number.isFinite(d.x)&&Number.isFinite(d.z))makeDroppedItem(d.name,{x:d.x,z:d.z});}updateHud();saveGame();}catch(e){window.parsProfileReady=false;console.warn('profile load failed',e)}});
+     socket.on('playerJoined',p=>{others[p.id]=p;window.dispatchEvent(new CustomEvent('pars-city-players',{detail:{type:'update',player:p}}));updateCount()});
+     socket.on('playerMoved',p=>{if(p&&p.id){others[p.id]=p;window.dispatchEvent(new CustomEvent('pars-city-players',{detail:{type:'update',player:p}}));}updateCount()});
+     socket.on('playerLeft',d=>{delete others[d.id];window.dispatchEvent(new CustomEvent('pars-city-players',{detail:{type:'remove',id:d.id}}));updateCount()});
+   }
+   if(!socket.connected){showState('Connecting to '+server+'...');socket.connect();}
+   else {socket.emit('joinRoom',{name,server});joined=true;showState('Join request sent to '+server+' ارسال شد...');}
+ }
+ choices.forEach(b=>b.addEventListener('click',()=>join(b.dataset.server)));
+ let last=0; function tick(t){if(joined&&socket&&socket.connected&&t-last>100){last=t;try{const obj=typeof inCar!=='undefined'&&inCar?car:player;socket.emit('move',{x:obj.position.x,z:obj.position.z,angle:typeof angle!=='undefined'?angle:0,inCar:typeof inCar!=='undefined'&&inCar,carType:typeof currentCarType!=='undefined'?currentCarType:'pride'});}catch(e){}}requestAnimationFrame(tick)} requestAnimationFrame(tick);
+})();
+</script>
+
+</body></html>
